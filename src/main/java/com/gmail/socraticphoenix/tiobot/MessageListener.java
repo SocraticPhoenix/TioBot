@@ -37,6 +37,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             String content = cmdContent.length > 1 ? cmdContent[1] : null;
 
             if (cmd.equals("run")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 String[] langContent = content.split(" ", 2);
                 if (!sessions.containsKey(id)) {
                     String lang = langContent[0];
@@ -65,6 +70,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send(handle + " already has a session. Cancel or submit it to create a new one.");
                 }
             } else if (cmd.equals("arg")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (sessions.containsKey(id)) {
                     CodeSession session = sessions.get(id);
                     session.getArgs().add(content);
@@ -73,6 +83,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send("No session found for " + handle);
                 }
             } else if (cmd.equals("input")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (sessions.containsKey(id)) {
                     if (sessions.containsKey(id)) {
                         CodeSession session = sessions.get(id);
@@ -85,6 +100,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send("No session found for " + handle);
                 }
             } else if (cmd.equals("code")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (sessions.containsKey(id)) {
                     CodeSession session = sessions.get(id);
                     session.getCode().append(content).append("\n");
@@ -93,6 +113,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send("No session found for " + handle);
                 }
             } else if (cmd.equals("flag")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (sessions.containsKey(id)) {
                     CodeSession session = sessions.get(id);
                     session.getCmdFlags().add(content);
@@ -101,6 +126,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send("No session found for " + handle);
                 }
             } else if (cmd.equals("cflag")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (sessions.containsKey(id)) {
                     CodeSession session = sessions.get(id);
                     session.getCompFlags().add(content);
@@ -124,6 +154,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send("No session found for " + handle);
                 }
             } else if (cmd.equals("session")) {
+                if (content == null) {
+                    room.send(handle + " expected more arguments...");
+                    return;
+                }
+
                 if (!sessions.containsKey(id)) {
                     String lang = content;
                     if (languages.contains(lang)) {
@@ -143,6 +178,8 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                 }
             } else if (cmd.equals("cancel")) {
                 sessions.remove(id);
+            } else if (cmd.equals("help")) {
+                room.send("[TIOBot command list](https://gist.github.com/SocraticPhoenix/bf98c72d0c1274acce76bc02ac6ee253)");
             }
         }
     }
