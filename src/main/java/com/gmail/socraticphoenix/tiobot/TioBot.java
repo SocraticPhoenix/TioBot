@@ -9,11 +9,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class TioBot {
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
+
+        LanguageCache cache = new LanguageCache();
+        System.out.println("Caching language list and beginning cache daemon...");
+        cache.queryLanguages();
+        Thread thread = new Thread(() -> {
+            try {
+                TimeUnit.SECONDS.sleep(15);
+            } catch (InterruptedException ignore) {
+
+            }
+
+            try {
+                cache.queryLanguages();
+            } catch (IllegalStateException e) {
+                System.out.println("Failed to query languages");
+            }
+        });
+        thread.setDaemon(true);
+        thread.setName("language-daemon");
 
         System.out.println("Beginning login...");
         System.out.print("Email> ");
@@ -40,7 +60,7 @@ public class TioBot {
                     Room room = client.joinRoom(ChatHost.valueOf(pieces[1].toUpperCase()), Integer.parseInt(pieces[2]));
                     rooms.add(room);
                     room.send("TIOBot logged in!");
-                    room.addEventListener(EventType.MESSAGE_POSTED, new MessageListener());
+                    room.addEventListener(EventType.MESSAGE_POSTED, new MessageListener(cache));
                     System.out.println("Joined room");
                 } catch (NumberFormatException e) {
                     System.out.println(pieces[2] + " must be an integer room id");
