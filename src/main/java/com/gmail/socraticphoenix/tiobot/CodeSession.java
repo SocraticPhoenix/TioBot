@@ -41,7 +41,7 @@ public class CodeSession {
         StringBuilder builder = new StringBuilder();
         builder.append("Code:\n").append(this.code.toString()).append("\n============\n\n");
 
-        builder.append("Input:\n").append(this.input.toString()).append("\n============\n\n");
+        builder.append("Input:\n").append(this.input.toString()).append("\n============\n");
 
         builder.append("\nArguments: ").append(this.args);
         builder.append("\nCompiler Flags: ").append(this.compFlags);

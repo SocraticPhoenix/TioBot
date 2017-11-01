@@ -47,7 +47,13 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                             TioResponse<TioResult> response = tio.send(session.format()).get();
                             if (response.getResult().isPresent()) {
                                 TioResult result = response.getResult().get();
-                                room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.OUTPUT)));
+
+                                String output = result.get(TioResult.Field.OUTPUT);
+                                if (!output.isEmpty()) {
+                                    room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.OUTPUT)));
+                                } else {
+                                    room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.DEBUG)));
+                                }
                             } else {
                                 room.send(handle + " sorry, but an error occurred while executing your code: " + response.getCode());
                             }
@@ -109,19 +115,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                         TioResponse<TioResult> response = tio.send(session.format()).get();
                         if (response.getResult().isPresent()) {
                             TioResult result = response.getResult().get();
-                            String[] output = result.get(TioResult.Field.OUTPUT).split("\n");
-                            String[] debug = result.get(TioResult.Field.DEBUG).split("\n");
-
-                            StringBuilder message = new StringBuilder();
-                            for (String k : output) {
-                                message.append("    ").append(k).append("\n");
-                            }
-                            message.append("\n============\n\n");
-                            for (String k : debug) {
-                                message.append("    ").append(k).append("\n");
-                            }
-
-                            room.send(codeBlock(handle + ":\n" + message.toString()));
+                            room.send(codeBlock(handle + ":\n" + result.get(TioResult.Field.OUTPUT) + "\n============\n\n" + result.get(TioResult.Field.DEBUG)));
                         } else {
                             room.send(handle + " sorry, but an error occurred while executing your code: " + response.getCode());
                         }

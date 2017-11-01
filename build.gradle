@@ -47,6 +47,12 @@ dependencies {
 }
 //End Repositories and Dependencies
 
+jar {
+    manifest {
+        attributes("Main-Class": "com.gmail.socraticphoenix.tiobot.TioBot")
+    }
+}
+
 //Tasks
 task sourceJar(type: Jar) {
     classifier = "source"
@@ -64,7 +70,9 @@ javadoc {
 
 shadowJar {
     classifier = "shadow"
-}
+    manifest {
+        attributes("Main-Class": "com.gmail.socraticphoenix.tiobot.TioBot")
+    }}
 //End Tasks
 
 //Configurations
