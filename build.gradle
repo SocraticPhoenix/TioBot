@@ -1,0 +1,74 @@
+//Plugins
+plugins {
+    id "net.ltgt.apt" version "0.10"
+    id "com.github.johnrengelman.shadow" version "2.0.1"
+}
+
+apply plugin : 'java'
+apply plugin : 'maven'
+apply plugin : 'idea'
+//End Plugins
+
+//Program Specific Variables
+def programVersion = ""
+def programGroup = ""
+//End Variables
+
+//Gradle Variables
+group = "$programGroup"
+version = "$programVersion"
+sourceCompatibility = 1.8
+//End Gradle Variables
+
+configurations {
+    library
+    compile.extendsFrom library
+    runtime.extendsFrom library
+}
+
+//Repositories and Dependencies
+repositories {
+    mavenCentral()
+
+    maven {
+        name "jitpack.io"
+        url "https://jitpack.io"
+    }
+
+    maven {
+        name "Tunaki-repo"
+        url "https://raw.github.com/Tunaki/chatexchange/mvn-repo/"
+    }
+}
+
+dependencies {
+    library fileTree(dir: 'libs', include: "*.jar")
+    library "fr.tunaki.stackoverflow:chatexchange:1.1.1"
+}
+//End Repositories and Dependencies
+
+//Tasks
+task sourceJar(type: Jar) {
+    classifier = "source"
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc){
+    classifier = "javadoc"
+    from javadoc.destinationDir
+}
+
+javadoc {
+    destinationDir = file("docs")
+}
+
+shadowJar {
+    classifier = "shadow"
+}
+//End Tasks
+
+//Configurations
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+//End configurations
