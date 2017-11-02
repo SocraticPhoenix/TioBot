@@ -29,7 +29,7 @@ public class TioBot {
             try {
                 cache.queryLanguages();
             } catch (IllegalStateException e) {
-                System.out.println("Failed to query languages");
+                System.out.println("Failed to query languages.");
             }
         });
         thread.setDaemon(true);

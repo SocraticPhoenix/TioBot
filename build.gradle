@@ -10,8 +10,8 @@ apply plugin : 'idea'
 //End Plugins
 
 //Program Specific Variables
-def programVersion = ""
-def programGroup = ""
+def programVersion = "0.0.3"
+def programGroup = "com.gmail.socraticphoenix"
 //End Variables
 
 //Gradle Variables
@@ -42,7 +42,8 @@ repositories {
 }
 
 dependencies {
-    library fileTree(dir: 'libs', include: "*.jar")
+    library "org.json:json:20171018"
+    library "com.github.SocraticPhoenix:TioJ:master-SNAPSHOT"
     library "fr.tunaki.stackoverflow:chatexchange:1.1.1"
 }
 //End Repositories and Dependencies

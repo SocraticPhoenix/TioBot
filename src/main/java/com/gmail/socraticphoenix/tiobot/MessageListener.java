@@ -36,40 +36,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                 String cmd = cmdContent[0];
                 String content = cmdContent.length > 1 ? cmdContent[1] : null;
 
-                if (cmd.equals("run")) {
-                    if (content == null) {
-                        room.send(handle + " expected more arguments...");
-                        return;
-                    }
-
-                    String[] langContent = content.split(" ", 2);
-                    if (!sessions.containsKey(id)) {
-                        String lang = langContent[0].toLowerCase();
-                        if (this.cache.contains(lang)) {
-                            CodeSession session = new CodeSession(lang);
-                            session.getCode().append(langContent[1]);
-                            new Thread(() -> {
-                                TioResponse<TioResult> response = tio.send(session.format()).get();
-                                if (response.getResult().isPresent()) {
-                                    TioResult result = response.getResult().get();
-
-                                    String output = result.get(TioResult.Field.OUTPUT);
-                                    if (!output.isEmpty()) {
-                                        room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.OUTPUT)));
-                                    } else {
-                                        room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.DEBUG)));
-                                    }
-                                } else {
-                                    room.send(handle + " sorry, but an error occurred while executing your code: " + response.getCode());
-                                }
-                            }).start();
-                        } else {
-                            room.send(handle + " sorry, but I couldn't find any languages matching \"" + lang + "\"");
-                        }
-                    } else {
-                        room.send(handle + " already has a session. Cancel or submit it to create a new one.");
-                    }
-                } else if (cmd.equals("arg")) {
+                if (cmd.equals("arg")) {
                     if (content == null) {
                         room.send(handle + " expected more arguments...");
                         return;
@@ -180,6 +147,56 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     sessions.remove(id);
                 } else if (cmd.equals("help")) {
                     room.send("[TIOBot command list](https://gist.github.com/SocraticPhoenix/bf98c72d0c1274acce76bc02ac6ee253)");
+                } else {
+                    boolean single = cmd.equals("do");
+
+                    if (content == null) {
+                        room.send(handle + " expected more arguments...");
+                        return;
+                    }
+
+                    if (!sessions.containsKey(id)) {
+                        String lang;
+                        String code;
+                        if (cmd.equals("do") || cmd.equals("run")) {
+                            String[] langContent = content.split(" ", 2);
+                            lang = langContent[0];
+                            code = langContent.length > 1 ? langContent[1] : "";
+                        } else {
+                            lang = cmd;
+                            code = content;
+                        }
+
+                        lang = lang.toLowerCase();
+
+                        if (this.cache.contains(lang)) {
+                            CodeSession session = new CodeSession(lang);
+                            session.getCode().append(code);
+                            new Thread(() -> {
+                                TioResponse<TioResult> response = tio.send(session.format()).get();
+                                if (response.getResult().isPresent()) {
+                                    TioResult result = response.getResult().get();
+
+                                    String output = result.get(TioResult.Field.OUTPUT);
+                                    if (single) {
+                                        room.send(codeBlock(handle + " " + output.split("\n")[0]));
+                                    } else {
+                                        if (!output.isEmpty()) {
+                                            room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.OUTPUT)));
+                                        } else {
+                                            room.send(codeBlock(handle + "\n" + result.get(TioResult.Field.DEBUG)));
+                                        }
+                                    }
+                                } else {
+                                    room.send(handle + " sorry, but an error occurred while executing your code: " + response.getCode());
+                                }
+                            }).start();
+                        } else {
+                            room.send(handle + " sorry, but I couldn't find any languages matching \"" + lang + "\"");
+                        }
+                    } else {
+                        room.send(handle + " already has a session. Cancel or submit it to create a new one.");
+                    }
                 }
             }
         } catch (Throwable e) {
