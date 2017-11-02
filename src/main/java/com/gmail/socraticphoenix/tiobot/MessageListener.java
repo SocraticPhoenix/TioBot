@@ -6,10 +6,13 @@ import com.gmail.socraticphoenix.tioj.TioResult;
 import fr.tunaki.stackoverflow.chat.Room;
 import fr.tunaki.stackoverflow.chat.User;
 import fr.tunaki.stackoverflow.chat.event.MessagePostedEvent;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -37,7 +40,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             User user = messagePostedEvent.getUser().get();
             Room room = messagePostedEvent.getRoom();
             long id = messagePostedEvent.getUserId();
-            String handle = "@" + messagePostedEvent.getUser().get().getName();
+            String handle = "@" + messagePostedEvent.getUser().get().getName().replace(" ", "");
 
             String text = messagePostedEvent.getMessage().getPlainContent();
 
@@ -199,6 +202,14 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
 
                 if (this.hasPermission(user)) {
                     String[] tc = content.split(" ", 2);
+                    if (tc[0].equals("view")) {
+                        StringBuilder builder = new StringBuilder();
+                        builder.append("Command Aliases:\n");
+                        this.commands.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
+                        builder.append("Language Aliases:\n");
+                        this.languages.forEach((k, v) -> builder.append(v).append(" -> ").append(k).append("\n"));
+                        room.send(codeBlock(builder.toString()));
+                    } else
                     if (tc.length < 2) {
                         room.send(handle + " expected more arguments...");
                     } else {
@@ -248,6 +259,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                             room.send(handle + " " + targetUser.getName() + " already has permissions in this room.");
                         } else {
                             permitted.add(targetId);
+                            room.send(handle + " granted permission to " + targetUser.getName());
                         }
                     } catch (NumberFormatException e) {
                         room.send(handle + " " + content + " is not number.");
@@ -268,6 +280,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                         } else if (!permitted.contains(targetId)) {
                             room.send(handle + " " + targetUser.getName() + " cannot have permissions revoked.");
                         } else {
+                            room.send(handle + " revoked permission from " + targetUser.getName());
                             permitted.remove(targetId);
                         }
                     } catch (NumberFormatException e) {
@@ -329,17 +342,59 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     room.send(handle + " already has a session. Cancel or submit it to create a new one.");
                 }
             }
-        } else if (text.startsWith("#")) {
-            text = text.substring(1);
-            for (String key : this.commands.keySet()) {
-                if(text.length() >= key.length() && text.substring(0, key.length()).equalsIgnoreCase(key)) {
-                    String cmd = this.commands.get(key).replace("%args%", text.substring(key.length()));
-                    executeCommand(user, room, id, handle, cmd);
-                    break;
+        } else {
+            String finalText = text;
+            Optional<String> key = this.commands.keySet().stream().filter(s -> finalText.length() >= s.length() && finalText.substring(0, s.length()).equalsIgnoreCase(s)).sorted((a, b) -> Integer.compare(b.length(), a.length())).findFirst();
+            if (key.isPresent()) {
+                text = text.substring(key.get().length());
+                if (text.startsWith(" ")) {
+                    text = text.substring(1);
                 }
+
+                String cmd = this.commands.get(key.get()).replace("%args%", text);
+                executeCommand(user, room, id, handle, cmd);
             }
         }
         limit--;
+    }
+
+    public void saveState(JSONObject rooms, Room room) {
+        String id = String.valueOf(room.getRoomId());
+
+        JSONObject object = new JSONObject();
+
+        JSONObject langAliases = new JSONObject();
+        JSONObject commandAliases = new JSONObject();
+
+        this.languages.forEach(langAliases::put);
+        this.commands.forEach(commandAliases::put);
+
+        JSONArray permitted = new JSONArray();
+        this.permitted.forEach(permitted::put);
+
+        object.put("languages", langAliases);
+        object.put("commands", commandAliases);
+        object.put("permitted", permitted);
+
+        rooms.put(id, object);
+    }
+
+    public void loadState(JSONObject rooms, Room room) {
+        String key = String.valueOf(room.getRoomId());
+        if (rooms.keySet().contains(key)) {
+            JSONObject object = rooms.getJSONObject(key);
+
+            JSONObject langAliases = object.getJSONObject("languages");
+            JSONObject commandAliases = object.getJSONObject("commands");
+
+            langAliases.keySet().forEach(s -> languages.put(s, String.valueOf(langAliases.get(s))));
+            commandAliases.keySet().forEach(s -> commands.put(s, String.valueOf(commandAliases.get(s))));
+
+            JSONArray permitted = object.getJSONArray("permitted");
+            for (int i = 0; i < permitted.length(); i++) {
+                this.permitted.add(permitted.getLong(i));
+            }
+        }
     }
 
     private String getLanguage(String lang) {
