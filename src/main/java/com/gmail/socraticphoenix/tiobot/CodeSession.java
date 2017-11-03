@@ -33,8 +33,8 @@ public class CodeSession {
                 .setLang(this.language)
                 .setInput(this.input.toString())
                 .setArguments(this.args.toArray(new String[this.args.size()]))
-                .setCompilerFlags(this.compFlags.toArray(new String[this.args.size()]))
-                .setCommandLineFlags(this.cmdFlags.toArray(new String[this.args.size()]));
+                .setCompilerFlags(this.compFlags.toArray(new String[this.compFlags.size()]))
+                .setCommandLineFlags(this.cmdFlags.toArray(new String[this.cmdFlags.size()]));
     }
 
     public String view() {
