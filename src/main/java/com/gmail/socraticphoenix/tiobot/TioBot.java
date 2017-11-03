@@ -22,12 +22,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TioBot {
+    private static boolean silentJoin = false;
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 1) {
-            System.out.println("Expected one argument: <dir>");
+        if (args.length == 0) {
+            System.out.println("Expected at least one argument: <dir>");
             return;
         }
+
+        silentJoin = args.length >= 2 && args[1].equals("silent");
 
         File dir = new File(args[0]);
         if (!dir.exists()) {
@@ -132,7 +135,8 @@ public class TioBot {
 
         while (true) {
             String command = scanner.nextLine();
-            if (command.equals("exit")) {
+            if (command.startsWith("exit")) {
+                boolean silent = command.equals("exit silent");
                 running.set(false);
                 System.out.println("Logging off...");
                 System.out.println("Saving config.");
@@ -143,7 +147,9 @@ public class TioBot {
 
                 synchronized (roomConf) {
                     rooms.forEach((r, m) -> {
-                        r.send("TIOBot logging off!");
+                        if (!silent) {
+                            r.send("TIOBot logging off!");
+                        }
                         m.saveState(roomConf, r);
                     });
 
@@ -205,7 +211,9 @@ public class TioBot {
             listener.loadState(roomConf, room);
 
             rooms.put(room, listener);
-            room.send("TIOBot logged in!");
+            if (!silentJoin) {
+                room.send("TIOBot logged in!");
+            }
             room.addEventListener(EventType.MESSAGE_POSTED, listener);
             room.addEventListener(EventType.USER_LEFT, ev -> {
                 sessions.remove(ev.getUserId());
