@@ -9,8 +9,10 @@ import fr.tunaki.stackoverflow.chat.event.MessagePostedEvent;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -21,13 +23,13 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
     private SessionCache sessions;
     private LanguageCache cache;
     private Set<Long> permitted = new HashSet<>();
-    private Map<String, String> languages = new HashMap<>();
-    private Map<String, String> commands = new HashMap<>();
+    private Map<String, List<String>> languages = new LinkedHashMap<>();
+    private Map<String, String> commands = new LinkedHashMap<>();
 
     public MessageListener(LanguageCache cache, SessionCache sessions) {
         this.cache = cache;
         this.sessions = sessions;
-        this.permitted.add(226059L); //Socratic_Phoenix's user id, for testing. You can always revoke his permission if you like.
+        this.permitted.add(226059L);
     }
 
     @Override
@@ -204,10 +206,10 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     String[] tc = content.split(" ", 2);
                     if (tc[0].equals("view")) {
                         StringBuilder builder = new StringBuilder();
-                        builder.append("Command Aliases:\n");
+                        builder.append(handle).append("\nCommand Aliases:\n");
                         this.commands.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
-                        builder.append("Language Aliases:\n");
-                        this.languages.forEach((k, v) -> builder.append(v).append(" -> ").append(k).append("\n"));
+                        builder.append("\nLanguage Aliases:\n");
+                        this.languages.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
                         room.send(codeBlock(builder.toString()));
                     } else
                     if (tc.length < 2) {
@@ -215,7 +217,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     } else {
                         String type = tc[0];
                         if (type.equals("rlang")) {
-                            String k = languages.remove(tc[1].toLowerCase());
+                            List<String> k = languages.remove(tc[1].toLowerCase());
                             if (k == null) {
                                 room.send(handle + " no alias exists for \"" + tc[1] + "\"");
                             } else {
@@ -234,7 +236,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                                 room.send(handle + " expected more arguments...");
                             } else if (type.equals("lang")) {
                                 String lang = aliasContent[0].toLowerCase();
-                                languages.put(lang, aliasContent[1]);
+                                languages.computeIfAbsent(lang, s -> new ArrayList<>()).add(aliasContent[1]);
                                 room.send(handle + " Added alias for " + lang);
                             } else if (type.equals("command")) {
                                 String command = aliasContent[0].toLowerCase();
@@ -291,6 +293,22 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                 } else {
                     room.send(handle + " you do not have permission to edit settings for this room!");
                 }
+            } else if (cmd.equals("permissions")) {
+                StringBuilder builder = new StringBuilder();
+                builder.append(handle).append("\nRoom Owners and Moderators:\n");
+                room.getCurrentUsers().stream().filter(u -> u.isModerator() || u.isRoomOwner()).forEach(u -> builder.append(u.getId()).append(" (").append(u.getName()).append(")\n"));
+                builder.append("\nUser Granted Permission:\n");
+                this.permitted.forEach(l -> {
+                    builder.append(l);
+                    try {
+                        User u = room.getUser(l);
+                        builder.append(" (").append(u.getName()).append(")");
+                    } catch (IndexOutOfBoundsException ignore) {
+
+                    }
+                    builder.append("\n");
+                });
+                room.send(codeBlock(builder.toString()));
             } else {
                 boolean single = cmd.equals("do");
 
@@ -366,7 +384,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
         JSONObject langAliases = new JSONObject();
         JSONObject commandAliases = new JSONObject();
 
-        this.languages.forEach(langAliases::put);
+        this.languages.forEach((k, v) -> {
+            JSONArray list = new JSONArray();
+            v.forEach(list::put);
+            langAliases.put(k, list);
+        });
         this.commands.forEach(commandAliases::put);
 
         JSONArray permitted = new JSONArray();
@@ -387,7 +409,14 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             JSONObject langAliases = object.getJSONObject("languages");
             JSONObject commandAliases = object.getJSONObject("commands");
 
-            langAliases.keySet().forEach(s -> languages.put(s, String.valueOf(langAliases.get(s))));
+            langAliases.keySet().forEach(s -> {
+                List<String> list = new ArrayList<>();
+                JSONArray array = langAliases.getJSONArray(s);
+                for (int i = 0; i < array.length(); i++) {
+                    list.add(String.valueOf(array.get(i)));
+                }
+                this.languages.put(s, list);
+            });
             commandAliases.keySet().forEach(s -> commands.put(s, String.valueOf(commandAliases.get(s))));
 
             JSONArray permitted = object.getJSONArray("permitted");
@@ -401,9 +430,12 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
         lang = lang.toLowerCase();
         if (this.cache.contains(lang)) {
             return lang;
-        } else if (this.cache.contains(this.languages.get(lang))) {
-            return this.languages.get(lang);
         } else {
+            for (Map.Entry<String, List<String>> entry : this.languages.entrySet()) {
+                if (entry.getValue().contains(lang)) {
+                    return entry.getKey();
+                }
+            }
             return null;
         }
     }

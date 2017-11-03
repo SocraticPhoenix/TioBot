@@ -1,6 +1,7 @@
 package com.gmail.socraticphoenix.tiobot;
 
 import fr.tunaki.stackoverflow.chat.ChatHost;
+import fr.tunaki.stackoverflow.chat.ChatOperationException;
 import fr.tunaki.stackoverflow.chat.Room;
 import fr.tunaki.stackoverflow.chat.StackExchangeClient;
 import fr.tunaki.stackoverflow.chat.event.EventType;
@@ -13,10 +14,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TioBot {
 
@@ -82,7 +85,35 @@ public class TioBot {
         email = null;
         password = null;
 
-        Map<Room, MessageListener> rooms = new HashMap<>();
+        Map<Room, MessageListener> rooms = Collections.synchronizedMap(new HashMap<>());
+        AtomicBoolean running = new AtomicBoolean(true);
+        AtomicBoolean finished = new AtomicBoolean(false);
+        Thread saveThread = new Thread(() -> {
+            long ms = System.currentTimeMillis();
+            while (running.get()) {
+                long now = System.currentTimeMillis();
+                if (now - ms >= TimeUnit.SECONDS.toMillis(15)) {
+                    synchronized (roomConf) {
+                        rooms.forEach((r, m) -> m.saveState(roomConf, r));
+                        String content = roomConf.toString();
+                        try (FileWriter writer = new FileWriter(roomStates)) {
+                            writer.write(content);
+                        } catch (IOException e) {
+                            System.err.println("Failed to save config");
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                try {
+                    TimeUnit.MILLISECONDS.sleep(250);
+                } catch (InterruptedException ignore) {
+                }
+            }
+            finished.set(true);
+        });
+        saveThread.setName("save-thread");
+        saveThread.start();
 
         if (configJson.keySet().contains("joins")) {
             JSONObject object = configJson.getJSONObject("joins");
@@ -91,7 +122,9 @@ public class TioBot {
                     JSONArray toJoin = object.getJSONArray(host.name());
                     for (int i = 0; i < toJoin.length(); i++) {
                         int k = toJoin.getInt(i);
-                        join(client, rooms, host.name(), k, cache, roomConf);
+                        synchronized (roomConf) {
+                            join(client, rooms, host.name(), k, cache, roomConf);
+                        }
                     }
                 }
             }
@@ -100,25 +133,58 @@ public class TioBot {
         while (true) {
             String command = scanner.nextLine();
             if (command.equals("exit")) {
+                running.set(false);
                 System.out.println("Logging off...");
-                rooms.forEach((r, m) -> {
-                    r.send("TIOBot logging off!");
-                    m.saveState(roomConf, r);
-                });
+                System.out.println("Saving config.");
 
-                client.close();
-
-                try (FileWriter writer = new FileWriter(roomStates)) {
-                    writer.write(roomConf.toString());
+                while (!finished.get()) {
+                    ;
                 }
 
-                System.out.println("Saving config.");
+                synchronized (roomConf) {
+                    rooms.forEach((r, m) -> {
+                        r.send("TIOBot logging off!");
+                        m.saveState(roomConf, r);
+                    });
+
+                    client.close();
+
+                    try (FileWriter writer = new FileWriter(roomStates)) {
+                        writer.write(roomConf.toString());
+                    }
+                }
 
                 break;
             } else if (command.startsWith("join")) {
                 String[] pieces = command.split(" ");
                 try {
-                    join(client, rooms, pieces[0], Integer.parseInt(pieces[1]), cache, roomConf);
+                    synchronized (roomConf) {
+                        join(client, rooms, pieces[1], Integer.parseInt(pieces[2]), cache, roomConf);
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println(pieces[2] + " must be an integer room id");
+                } catch (IllegalArgumentException e) {
+                    System.out.println(pieces[1] + " must be one of " + Arrays.toString(ChatHost.values()));
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Expected 2 arguments");
+                }
+            } else if (command.startsWith("autojoin")) {
+                String[] pieces = command.split(" ");
+                try {
+                    synchronized (roomConf) {
+                        join(client, rooms, pieces[1], Integer.parseInt(pieces[2]), cache, roomConf);
+                        if (!configJson.keySet().contains("joins")) {
+                            configJson.put("joins", new JSONObject());
+                        }
+
+                        JSONObject joins = configJson.getJSONObject("joins");
+                        String host = pieces[1].toUpperCase();
+                        if (!joins.keySet().contains(host)) {
+                            joins.put(host, new JSONArray());
+                        }
+                        joins.getJSONArray(host).put(Integer.parseInt(pieces[2]));
+                        System.out.println("Added room to autojoin list");
+                    }
                 } catch (NumberFormatException e) {
                     System.out.println(pieces[2] + " must be an integer room id");
                 } catch (IllegalArgumentException e) {
@@ -131,23 +197,27 @@ public class TioBot {
     }
 
     private static void join(StackExchangeClient client, Map<Room, MessageListener> rooms, String host, int id, LanguageCache cache, JSONObject roomConf) {
-        SessionCache sessions = new SessionCache();
+        try {
+            SessionCache sessions = new SessionCache();
 
-        Room room = client.joinRoom(ChatHost.valueOf(host.toUpperCase()), id);
-        MessageListener listener = new MessageListener(cache, sessions);
-        listener.loadState(roomConf, room);
+            Room room = client.joinRoom(ChatHost.valueOf(host.toUpperCase()), id);
+            MessageListener listener = new MessageListener(cache, sessions);
+            listener.loadState(roomConf, room);
 
-        rooms.put(room, listener);
-        room.send("TIOBot logged in!");
-        room.addEventListener(EventType.MESSAGE_POSTED, listener);
-        room.addEventListener(EventType.USER_LEFT, ev -> {
-            sessions.remove(ev.getUserId());
-        });
-        room.addEventListener(EventType.KICKED, ev -> {
-            sessions.remove(ev.getUserId());
-        });
+            rooms.put(room, listener);
+            room.send("TIOBot logged in!");
+            room.addEventListener(EventType.MESSAGE_POSTED, listener);
+            room.addEventListener(EventType.USER_LEFT, ev -> {
+                sessions.remove(ev.getUserId());
+            });
+            room.addEventListener(EventType.KICKED, ev -> {
+                sessions.remove(ev.getUserId());
+            });
 
-        System.out.println("Joined room: (" + host.toUpperCase() + ", " + id + ")");
+            System.out.println("Joined room: (" + host.toUpperCase() + ", " + id + ")");
+        } catch (ChatOperationException e) {
+            System.out.println("Cannot join a room twice");
+        }
     }
 
     private static String content(File file) throws IOException {
