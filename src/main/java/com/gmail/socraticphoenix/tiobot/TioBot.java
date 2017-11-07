@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TioBot {
     private static boolean silentJoin = false;
+    public static boolean running = true;
+    public static boolean silentLeave = false;
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
@@ -106,6 +108,16 @@ public class TioBot {
                             e.printStackTrace();
                         }
                     }
+
+                    synchronized (config) {
+                        String content = configJson.toString(0);
+                        try (FileWriter writer = new FileWriter(config)) {
+                            writer.write(content);
+                        } catch (IOException e) {
+                            System.err.println("Failed to save config");
+                            e.printStackTrace();
+                        }
+                    }
                 }
 
                 try {
@@ -133,33 +145,11 @@ public class TioBot {
             }
         }
 
-        while (true) {
+        while (TioBot.running) {
             String command = scanner.nextLine();
             if (command.startsWith("exit")) {
-                boolean silent = command.equals("exit silent");
-                running.set(false);
-                System.out.println("Logging off...");
-                System.out.println("Saving config.");
-
-                while (!finished.get()) {
-                    ;
-                }
-
-                synchronized (roomConf) {
-                    rooms.forEach((r, m) -> {
-                        if (!silent) {
-                            r.send("TIOBot logging off!");
-                        }
-                        m.saveState(roomConf, r);
-                    });
-
-                    client.close();
-
-                    try (FileWriter writer = new FileWriter(roomStates)) {
-                        writer.write(roomConf.toString());
-                    }
-                }
-
+                TioBot.silentLeave = command.equals("exit silent");
+                TioBot.running = false;
                 break;
             } else if (command.startsWith("join")) {
                 String[] pieces = command.split(" ");
@@ -183,13 +173,15 @@ public class TioBot {
                             configJson.put("joins", new JSONObject());
                         }
 
-                        JSONObject joins = configJson.getJSONObject("joins");
-                        String host = pieces[1].toUpperCase();
-                        if (!joins.keySet().contains(host)) {
-                            joins.put(host, new JSONArray());
+                        synchronized (configJson) {
+                            JSONObject joins = configJson.getJSONObject("joins");
+                            String host = pieces[1].toUpperCase();
+                            if (!joins.keySet().contains(host)) {
+                                joins.put(host, new JSONArray());
+                            }
+                            joins.getJSONArray(host).put(Integer.parseInt(pieces[2]));
+                            System.out.println("Added room to autojoin list");
                         }
-                        joins.getJSONArray(host).put(Integer.parseInt(pieces[2]));
-                        System.out.println("Added room to autojoin list");
                     }
                 } catch (NumberFormatException e) {
                     System.out.println(pieces[2] + " must be an integer room id");
@@ -198,6 +190,34 @@ public class TioBot {
                 } catch (ArrayIndexOutOfBoundsException e) {
                     System.out.println("Expected 2 arguments");
                 }
+            }
+        }
+
+        running.set(false);
+        System.out.println("Logging off...");
+        System.out.println("Saving config.");
+
+        while (!finished.get());
+
+        synchronized (roomConf) {
+            rooms.forEach((r, m) -> {
+                if (!TioBot.silentLeave) {
+                    r.send("TIOBot logging off!");
+                }
+                m.saveState(roomConf, r);
+            });
+
+            client.close();
+
+            try (FileWriter writer = new FileWriter(roomStates)) {
+                writer.write(roomConf.toString());
+            }
+        }
+
+        synchronized (configJson) {
+            String content = configJson.toString(0);
+            try (FileWriter writer = new FileWriter(config)) {
+                writer.write(content);
             }
         }
     }

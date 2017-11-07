@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public class MessageListener implements Consumer<MessagePostedEvent> {
     private static Tio tio = Tio.MAIN;
@@ -25,11 +26,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
     private Set<Long> permitted = new HashSet<>();
     private Map<String, List<String>> languages = new LinkedHashMap<>();
     private Map<String, String> commands = new LinkedHashMap<>();
+    private Map<String, String> messages = new LinkedHashMap<>();
 
     public MessageListener(LanguageCache cache, SessionCache sessions) {
         this.cache = cache;
         this.sessions = sessions;
-        this.permitted.add(226059L);
     }
 
     @Override
@@ -53,6 +54,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
     }
 
     private int limit = 0;
+
     private void executeCommand(User user, Room room, long id, String handle, String text) {
         if (limit >= 255) {
             limit = 0;
@@ -192,9 +194,9 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             } else if (cmd.equals("cancel")) {
                 sessions.remove(id);
             } else if (cmd.equals("help")) {
-                room.send(handle + " [TIOBot command list](https://gist.github.com/SocraticPhoenix/bf98c72d0c1274acce76bc02ac6ee253)");
+                room.send(handle + " [TIOBot command list](https://github.com/SocraticPhoenix/TioBot/wiki/Commands)");
             } else if (cmd.equals("version")) {
-                room.send(handle + " TIOBot v 0.0.3");
+                room.send(handle + " TIOBot v 0.0.4");
             } else if (cmd.equals("alias")) {
                 if (content == null) {
                     room.send(handle + " expected more arguments...");
@@ -211,8 +213,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                         builder.append("\nLanguage Aliases:\n");
                         this.languages.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
                         room.send(codeBlock(builder.toString()));
-                    } else
-                    if (tc.length < 2) {
+                    } else if (tc.length < 2) {
                         room.send(handle + " expected more arguments...");
                     } else {
                         String type = tc[0];
@@ -230,6 +231,13 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                             } else {
                                 room.send(handle + " removed alias for \"" + tc[1] + "\"");
                             }
+                        } else if (type.equals("rmessage")) {
+                            String k = messages.remove(tc[1].toLowerCase());
+                            if (k == null) {
+                                room.send(handle + " no alias exists for \"" + tc[1] + "\"");
+                            } else {
+                                room.send(handle + " removed alias for \"" + tc[1] + "\"");
+                            }
                         } else {
                             String[] aliasContent = tc[1].split(" ", 2);
                             if (aliasContent.length < 2) {
@@ -241,6 +249,10 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                             } else if (type.equals("command")) {
                                 String command = aliasContent[0].toLowerCase();
                                 commands.put(command, aliasContent[1]);
+                                room.send(handle + " Added alias for " + command);
+                            } else if (type.equals("message")) {
+                                String command = aliasContent[0].toLowerCase();
+                                messages.put(command, aliasContent[1]);
                                 room.send(handle + " Added alias for " + command);
                             } else {
                                 room.send(handle + " No alias type called \"" + type + "\"");
@@ -371,6 +383,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
 
                 String cmd = this.commands.get(key.get()).replace("%args%", text);
                 executeCommand(user, room, id, handle, cmd);
+            } else {
+                key = this.messages.keySet().stream().filter(finalText::equalsIgnoreCase).findFirst();
+                if (key.isPresent()) {
+                    room.send(this.messages.get(key.get()).replace("%handle%", handle));
+                }
             }
         }
         limit--;
@@ -383,6 +400,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
 
         JSONObject langAliases = new JSONObject();
         JSONObject commandAliases = new JSONObject();
+        JSONObject messageAliases = new JSONObject();
 
         this.languages.forEach((k, v) -> {
             JSONArray list = new JSONArray();
@@ -390,12 +408,14 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             langAliases.put(k, list);
         });
         this.commands.forEach(commandAliases::put);
+        this.messages.forEach(messageAliases::put);
 
         JSONArray permitted = new JSONArray();
         this.permitted.forEach(permitted::put);
 
         object.put("languages", langAliases);
         object.put("commands", commandAliases);
+        object.put("messages", messageAliases);
         object.put("permitted", permitted);
 
         rooms.put(id, object);
@@ -406,8 +426,11 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
         if (rooms.keySet().contains(key)) {
             JSONObject object = rooms.getJSONObject(key);
 
+            Stream.of("languages", "commands", "messages").filter(s -> !object.keySet().contains(s)).forEach(s -> object.put(s, new JSONObject()));
+
             JSONObject langAliases = object.getJSONObject("languages");
             JSONObject commandAliases = object.getJSONObject("commands");
+            JSONObject messages = object.getJSONObject("messages");
 
             langAliases.keySet().forEach(s -> {
                 List<String> list = new ArrayList<>();
@@ -418,6 +441,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                 this.languages.put(s, list);
             });
             commandAliases.keySet().forEach(s -> commands.put(s, String.valueOf(commandAliases.get(s))));
+            messages.keySet().forEach(s -> messages.put(s, String.valueOf(messages.get(s))));
 
             JSONArray permitted = object.getJSONArray("permitted");
             for (int i = 0; i < permitted.length(); i++) {
