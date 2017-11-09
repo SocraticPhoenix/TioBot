@@ -204,64 +204,63 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                     return;
                 }
 
-                if (this.hasPermission(user)) {
-                    String[] tc = content.split(" ", 2);
-                    if (tc[0].equals("view")) {
-                        StringBuilder builder = new StringBuilder();
-                        builder.append(handle).append("\nCommand Aliases:\n");
-                        this.commands.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
-                        builder.append("\nLanguage Aliases:\n");
-                        this.languages.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
-                        room.send(codeBlock(builder.toString()));
-                    } else if (tc.length < 2) {
-                        room.send(handle + " expected more arguments...");
-                    } else {
-                        String type = tc[0];
-                        if (type.equals("rlang")) {
-                            List<String> k = languages.remove(tc[1].toLowerCase());
-                            if (k == null) {
-                                room.send(handle + " no alias exists for \"" + tc[1] + "\"");
-                            } else {
-                                room.send(handle + " removed alias for \"" + tc[1] + "\"");
-                            }
-                        } else if (type.equals("rcommand")) {
-                            String k = commands.remove(tc[1].toLowerCase());
-                            if (k == null) {
-                                room.send(handle + " no alias exists for \"" + tc[1] + "\"");
-                            } else {
-                                room.send(handle + " removed alias for \"" + tc[1] + "\"");
-                            }
-                        } else if (type.equals("rmessage")) {
-                            String k = messages.remove(tc[1].toLowerCase());
-                            if (k == null) {
-                                room.send(handle + " no alias exists for \"" + tc[1] + "\"");
-                            } else {
-                                room.send(handle + " removed alias for \"" + tc[1] + "\"");
-                            }
+                String[] tc = content.split(" ", 2);
+                if (tc[0].equals("view")) {
+                    StringBuilder builder = new StringBuilder();
+                    builder.append(handle).append("\nCommand Aliases:\n");
+                    this.commands.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
+                    builder.append("\nLanguage Aliases:\n");
+                    this.languages.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
+                    builder.append("\nMessage Aliases:\n");
+                    this.messages.forEach((k, v) -> builder.append(k).append(" -> ").append(v).append("\n"));
+                    room.send(codeBlock(builder.toString()));
+                } else if (!this.hasPermission(user)) {
+                    room.send(handle + " you do not have permission to edit settings for this room!");
+                } else if (tc.length < 2) {
+                    room.send(handle + " expected more arguments...");
+                } else {
+                    String type = tc[0];
+                    if (type.equals("rlang")) {
+                        List<String> k = languages.remove(tc[1].toLowerCase());
+                        if (k == null) {
+                            room.send(handle + " no alias exists for \"" + tc[1] + "\"");
                         } else {
-                            String[] aliasContent = tc[1].split(" ", 2);
-                            if (aliasContent.length < 2) {
-                                room.send(handle + " expected more arguments...");
-                            } else if (type.equals("lang")) {
-                                String lang = aliasContent[0].toLowerCase();
-                                languages.computeIfAbsent(lang, s -> new ArrayList<>()).add(aliasContent[1]);
-                                room.send(handle + " Added alias for " + lang);
-                            } else if (type.equals("command")) {
-                                String command = aliasContent[0].toLowerCase();
-                                commands.put(command, aliasContent[1]);
-                                room.send(handle + " Added alias for " + command);
-                            } else if (type.equals("message")) {
-                                String command = aliasContent[0].toLowerCase();
-                                messages.put(command, aliasContent[1]);
-                                room.send(handle + " Added alias for " + command);
-                            } else {
-                                room.send(handle + " No alias type called \"" + type + "\"");
-                            }
+                            room.send(handle + " removed alias for \"" + tc[1] + "\"");
+                        }
+                    } else if (type.equals("rcommand")) {
+                        String k = commands.remove(tc[1].toLowerCase());
+                        if (k == null) {
+                            room.send(handle + " no alias exists for \"" + tc[1] + "\"");
+                        } else {
+                            room.send(handle + " removed alias for \"" + tc[1] + "\"");
+                        }
+                    } else if (type.equals("rmessage")) {
+                        String k = messages.remove(tc[1].toLowerCase());
+                        if (k == null) {
+                            room.send(handle + " no alias exists for \"" + tc[1] + "\"");
+                        } else {
+                            room.send(handle + " removed alias for \"" + tc[1] + "\"");
+                        }
+                    } else {
+                        String[] aliasContent = tc[1].split(" ", 2);
+                        if (aliasContent.length < 2) {
+                            room.send(handle + " expected more arguments...");
+                        } else if (type.equals("lang")) {
+                            String lang = aliasContent[0].toLowerCase();
+                            languages.computeIfAbsent(lang, s -> new ArrayList<>()).add(aliasContent[1]);
+                            room.send(handle + " Added alias for " + lang);
+                        } else if (type.equals("command")) {
+                            String command = aliasContent[0].toLowerCase();
+                            commands.put(command, aliasContent[1]);
+                            room.send(handle + " Added alias for " + command);
+                        } else if (type.equals("message")) {
+                            String command = aliasContent[0].toLowerCase();
+                            messages.put(command, aliasContent[1]);
+                            room.send(handle + " Added alias for " + command);
+                        } else {
+                            room.send(handle + " No alias type called \"" + type + "\"");
                         }
                     }
-
-                } else {
-                    room.send(handle + " you do not have permission to edit settings for this room!");
                 }
             } else if (cmd.equals("grant")) {
                 if (this.hasPermission(user)) {
