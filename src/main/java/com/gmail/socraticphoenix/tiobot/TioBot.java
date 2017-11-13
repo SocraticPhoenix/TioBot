@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -154,21 +155,64 @@ public class TioBot {
             } else if (command.startsWith("leave")) {
                 String[] pieces = command.split(" ");
                 try {
-                    boolean silent = pieces.length >= 3 && pieces[2].equals("silent");
                     synchronized (roomConf) {
-                        rooms.entrySet().stream().filter(r -> r.getKey().getRoomId() == Integer.parseInt(pieces[1])).forEach(r -> {
+                        int id = Integer.parseInt(pieces[2]);
+                        ChatHost host = ChatHost.valueOf(pieces[1]);
+                        boolean silent = pieces.length >= 4 && pieces[3].equals("silent");
+
+                        Optional<Room> target = rooms.keySet().stream().filter(r -> r.getRoomId() == id && r.getHost() == host).findFirst();
+
+                        if (target.isPresent()) {
+                            Room room = target.get();
+
                             if (!silent) {
-                                r.getKey().send("TIOBot logging off!");
+                                room.send("TIOBot logging off!");
                             }
-                            r.getKey().leave();
-                        });
+
+                            room.leave();
+                            rooms.remove(room);
+                        }
                     }
                 } catch (NumberFormatException e) {
-                    System.out.println(pieces[1] + " must be an integer room id");
+                    System.out.println(pieces[2] + " must be an integer room id");
+                } catch (IllegalArgumentException e) {
+                    System.out.println(pieces[1] + " must be one of " + Arrays.toString(ChatHost.values()));
                 } catch (ArrayIndexOutOfBoundsException e) {
-                    System.out.println("Expected 1 arguments");
+                    System.out.println("Expected 2 arguments");
                 }
-            } else if (command.startsWith("join")) {
+            } else if (command.startsWith("atuoleave")) {
+                String[] pieces = command.split(" ");
+                try {
+                    synchronized (roomConf) {
+                        int id = Integer.parseInt(pieces[2]);
+                        ChatHost host = ChatHost.valueOf(pieces[1]);
+                        boolean silent = pieces.length >= 4 && pieces[3].equals("silent");
+
+                        Optional<Room> target = rooms.keySet().stream().filter(r -> r.getRoomId() == id && r.getHost() == host).findFirst();
+
+                        if (target.isPresent()) {
+                            Room room = target.get();
+
+                            if (!silent) {
+                                room.send("TIOBot logging off!");
+                            }
+
+                            room.leave();
+                            rooms.remove(room);
+
+                            if (roomConf.keySet().contains(host.toString())) {
+                                roomConf.getJSONObject(host.toString()).remove(String.valueOf(id));
+                            }
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println(pieces[2] + " must be an integer room id");
+                } catch (IllegalArgumentException e) {
+                    System.out.println(pieces[1] + " must be one of " + Arrays.toString(ChatHost.values()));
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Expected 2 arguments");
+                }
+            }  else if (command.startsWith("join")) {
                 String[] pieces = command.split(" ");
                 try {
                     synchronized (roomConf) {

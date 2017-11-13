@@ -196,7 +196,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             } else if (cmd.equals("help")) {
                 room.send(handle + " [TIOBot command list](https://github.com/SocraticPhoenix/TioBot/wiki/Commands)");
             } else if (cmd.equals("version")) {
-                room.send(handle + " TIOBot v 0.0.4");
+                room.send(handle + " TIOBot v 0.0.6");
             } else if (cmd.equals("alias")) {
                 if (content == null) {
                     room.send(handle + " expected more arguments...");
