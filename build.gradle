@@ -10,7 +10,7 @@ apply plugin : 'idea'
 //End Plugins
 
 //Program Specific Variables
-def programVersion = "0.0.4"
+def programVersion = "0.0.5"
 def programGroup = "com.gmail.socraticphoenix"
 //End Variables
 

@@ -151,6 +151,23 @@ public class TioBot {
                 TioBot.silentLeave = command.equals("exit silent");
                 TioBot.running = false;
                 break;
+            } else if (command.startsWith("leave")) {
+                String[] pieces = command.split(" ");
+                try {
+                    boolean silent = pieces.length >= 3 && pieces[2].equals("silent");
+                    synchronized (roomConf) {
+                        rooms.entrySet().stream().filter(r -> r.getKey().getRoomId() == Integer.parseInt(pieces[1])).forEach(r -> {
+                            if (!silent) {
+                                r.getKey().send("TIOBot logging off!");
+                            }
+                            r.getKey().leave();
+                        });
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println(pieces[1] + " must be an integer room id");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Expected 1 arguments");
+                }
             } else if (command.startsWith("join")) {
                 String[] pieces = command.split(" ");
                 try {
