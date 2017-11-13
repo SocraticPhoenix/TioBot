@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TioBot {
+    public static final String VERSION = "0.0.6";
+
     private static boolean silentJoin = false;
     public static boolean running = true;
     public static boolean silentLeave = false;
@@ -34,6 +36,8 @@ public class TioBot {
         }
 
         silentJoin = args.length >= 2 && args[1].equals("silent");
+
+        System.out.println("TIOBot v " + TioBot.VERSION);
 
         File dir = new File(args[0]);
         if (!dir.exists()) {
@@ -166,7 +170,7 @@ public class TioBot {
                             Room room = target.get();
 
                             if (!silent) {
-                                room.send("TIOBot logging off!");
+                                room.send("TIOBot (" + TioBot.VERSION + ") logging off!");
                             }
 
                             room.leave();
@@ -194,7 +198,7 @@ public class TioBot {
                             Room room = target.get();
 
                             if (!silent) {
-                                room.send("TIOBot logging off!");
+                                room.send("TIOBot ("   + TioBot.VERSION + ") logging off!");
                             }
 
                             room.leave();
@@ -263,7 +267,7 @@ public class TioBot {
         synchronized (roomConf) {
             rooms.forEach((r, m) -> {
                 if (!TioBot.silentLeave) {
-                    r.send("TIOBot logging off!");
+                    r.send("TIOBot (" + TioBot.VERSION + ")logging off!");
                 }
                 m.saveState(roomConf, r);
             });
@@ -293,7 +297,7 @@ public class TioBot {
 
             rooms.put(room, listener);
             if (!silentJoin) {
-                room.send("TIOBot logged in!");
+                room.send("TIOBot (" + TioBot.VERSION + ") logged in!");
             }
             room.addEventListener(EventType.MESSAGE_POSTED, listener);
             room.addEventListener(EventType.USER_LEFT, ev -> {

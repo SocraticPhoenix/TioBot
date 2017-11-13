@@ -196,7 +196,7 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
             } else if (cmd.equals("help")) {
                 room.send(handle + " [TIOBot command list](https://github.com/SocraticPhoenix/TioBot/wiki/Commands)");
             } else if (cmd.equals("version")) {
-                room.send(handle + " TIOBot v 0.0.6");
+                room.send(handle + " TIOBot v " + TioBot.VERSION);
             } else if (cmd.equals("alias")) {
                 if (content == null) {
                     room.send(handle + " expected more arguments...");
@@ -417,13 +417,27 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
         object.put("messages", messageAliases);
         object.put("permitted", permitted);
 
-        rooms.put(id, object);
+        String category = room.getHost().toString();
+        if (!rooms.keySet().contains(category)) {
+            rooms.put(category, new JSONObject());
+        }
+
+        JSONObject host = rooms.getJSONObject(category);
+
+        host.put(id, object);
     }
 
     public void loadState(JSONObject rooms, Room room) {
+        String category = room.getHost().toString();
+        if (!rooms.keySet().contains(category)) {
+            rooms.put(category, new JSONObject());
+        }
+
+        JSONObject host = rooms.getJSONObject(category);
+
         String key = String.valueOf(room.getRoomId());
-        if (rooms.keySet().contains(key)) {
-            JSONObject object = rooms.getJSONObject(key);
+        if (host.keySet().contains(key)) {
+            JSONObject object = host.getJSONObject(key);
 
             Stream.of("languages", "commands", "messages").filter(s -> !object.keySet().contains(s)).forEach(s -> object.put(s, new JSONObject()));
 
@@ -439,8 +453,8 @@ public class MessageListener implements Consumer<MessagePostedEvent> {
                 }
                 this.languages.put(s, list);
             });
-            commandAliases.keySet().forEach(s -> commands.put(s, String.valueOf(commandAliases.get(s))));
-            messages.keySet().forEach(s -> messages.put(s, String.valueOf(messages.get(s))));
+            commandAliases.keySet().forEach(s -> this.commands.put(s, String.valueOf(commandAliases.get(s))));
+            messages.keySet().forEach(s -> this.messages.put(s, String.valueOf(messages.get(s))));
 
             JSONArray permitted = object.getJSONArray("permitted");
             for (int i = 0; i < permitted.length(); i++) {
