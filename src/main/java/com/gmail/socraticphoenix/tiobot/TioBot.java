@@ -184,7 +184,7 @@ public class TioBot {
                 } catch (ArrayIndexOutOfBoundsException e) {
                     System.out.println("Expected 2 arguments");
                 }
-            } else if (command.startsWith("atuoleave")) {
+            } else if (command.startsWith("autoleave")) {
                 String[] pieces = command.split(" ");
                 try {
                     synchronized (roomConf) {
