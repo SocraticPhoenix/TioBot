@@ -35,16 +35,12 @@ repositories {
         url "https://jitpack.io"
     }
 
-    maven {
-        name "Tunaki-repo"
-        url "https://raw.github.com/Tunaki/chatexchange/mvn-repo/"
-    }
 }
 
 dependencies {
     library "org.json:json:20171018"
     library "com.github.SocraticPhoenix:TioJ:master-SNAPSHOT"
-    library "fr.tunaki.stackoverflow:chatexchange:1.1.1"
+    compile "org.sobotics:chatexchange:2.0.0"
 }
 //End Repositories and Dependencies
 
