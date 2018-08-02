@@ -4,3 +4,7 @@
 out
 build
 testConfig
+/bin/
+.classpath
+.project
+.settings/
