@@ -23,7 +23,7 @@ import org.sobotics.chatexchange.chat.StackExchangeClient;
 import org.sobotics.chatexchange.chat.event.EventType;
 
 public class TioBot {
-	public static final String VERSION = "0.0.6";
+	public static final String VERSION = "0.0.7";
 
 	private static boolean silentJoin = false;
 	public static boolean running = true;
