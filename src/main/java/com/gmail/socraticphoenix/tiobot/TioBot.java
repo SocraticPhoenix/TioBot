@@ -23,7 +23,7 @@ import org.sobotics.chatexchange.chat.StackExchangeClient;
 import org.sobotics.chatexchange.chat.event.EventType;
 
 public class TioBot {
-	public static final String VERSION = "0.0.7";
+	public static final String VERSION = "0.0.8";
 
 	private static boolean silentJoin = false;
 	public static boolean running = true;
@@ -270,7 +270,7 @@ public class TioBot {
 		synchronized (roomConf) {
 			rooms.forEach((r, m) -> {
 				if (!TioBot.silentLeave) {
-					r.send("TIOBot (" + TioBot.VERSION + ")logging off!");
+					r.send("TIOBot (" + TioBot.VERSION + ") logging off!");
 				}
 				m.saveState(roomConf, r);
 			});
